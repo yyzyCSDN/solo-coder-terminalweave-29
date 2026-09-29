@@ -37,6 +37,10 @@ class FuelEfficiencyTracker:
             return None
         return consumed / hours
 
+    def latest_reading(self, equipment_id: str) -> FuelReading | None:
+        s = self.readings.get(equipment_id, [])
+        return s[-1] if s else None
+
     def suspected_refuel(self, equipment_id: str) -> list[tuple[datetime, float]]:
         s = self.readings.get(equipment_id, [])
         out = []

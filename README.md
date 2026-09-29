@@ -28,3 +28,20 @@ library components intended to be composed by an embedding application.
 ## Main packages
 
 `marine`, `cranes`, `yard`, `gate`, `customs`, `reefer`, `hazmat`, `equipment`, `rail`, `billing`, `transshipment`, `planning`, `persistence`, `reporting`, and `api`.
+
+### Real-time equipment dispatchability
+
+`equipment.availability` aggregates every ledger signal — equipment state,
+unresolved incidents, due/overdue maintenance plans, battery or fuel reserve,
+reported position and task deadline — into one dispatchability view
+(`dispatchable` / `constrained` / `blocked`). `equipment.dispatch_board.DispatchBoard`
+sits on top of the existing `FleetRegistry` and observes state transitions:
+
+- `availability_view(now, kind=...)` gives dispatchers the unified real-time list;
+- `assign` / `auto_assign` pick equipment for a task, and every refusal raises
+  `DispatchRejected` carrying structured `RejectReason` entries with concrete
+  codes and messages (fault, overdue maintenance, energy shortfall, unreachable
+  deadline, unknown location, capacity/kind mismatch, busy, ...);
+- fleet state changes only revoke **not-yet-started** assignments via
+  `refresh(now)`; in-progress tasks keep running and the unit becomes
+  unavailable for new work.

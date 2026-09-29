@@ -1,7 +1,8 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
-from terminalweave.core.errors import ValidationError, StateTransitionError
+from typing import Callable
+from terminalweave.core.errors import ValidationError, StateTransitionError, NotFoundError
 
 class EquipmentState(str, Enum):
     AVAILABLE = 'available'
@@ -29,11 +30,21 @@ class FleetRegistry:
 
     def __init__(self):
         self.items: dict[str, Equipment] = {}
+        self._transition_listeners: list[Callable[[str, EquipmentState], None]] = []
+
+    def on_transition(self, listener: Callable[[str, EquipmentState], None]) -> None:
+        self._transition_listeners.append(listener)
 
     def add(self, item: Equipment) -> None:
         if item.equipment_id in self.items:
             raise ValidationError('duplicate equipment id')
         self.items[item.equipment_id] = item
+
+    def get(self, equipment_id: str) -> Equipment:
+        try:
+            return self.items[equipment_id]
+        except KeyError:
+            raise NotFoundError(f'unknown equipment {equipment_id}')
 
     def transition(self, equipment_id: str, new_state: EquipmentState) -> Equipment:
         item = self.items[equipment_id]
@@ -41,6 +52,8 @@ class FleetRegistry:
         if new_state not in allowed[item.state]:
             raise StateTransitionError(f'cannot transition {item.state} -> {new_state}')
         item.state = new_state
+        for listener in self._transition_listeners:
+            listener(equipment_id, new_state)
         return item
 
     def update_location(self, equipment_id: str, location: str) -> None:

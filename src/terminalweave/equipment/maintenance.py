@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from terminalweave.core.clock import ensure_utc
-from terminalweave.core.errors import ValidationError, StateTransitionError
+from terminalweave.core.errors import ValidationError, StateTransitionError, NotFoundError
 
 class WorkOrderState(str, Enum):
     OPEN = 'open'
@@ -56,6 +56,14 @@ class WorkOrder:
     completed_at: datetime | None = None
     completed_meter: float | None = None
 
+@dataclass(frozen=True)
+class MaintenanceStatus:
+    equipment_id: str
+    due: tuple[str, ...]
+    overdue: tuple[str, ...]
+    active_work_order: bool
+
+
 class MaintenanceManager:
 
     def __init__(self):
@@ -81,6 +89,24 @@ class MaintenanceManager:
     def is_overdue(self, equipment_id: str, plan_id: str) -> bool:
         plan = self._plans[plan_id]
         return self._meters[equipment_id].hours > self.due_hours(equipment_id, plan_id) + plan.grace_hours
+
+    def maintenance_status(self, equipment_id: str,
+                           strict: bool = False) -> MaintenanceStatus:
+        if equipment_id not in self._meters:
+            if strict:
+                raise NotFoundError(f'no meter for equipment {equipment_id}')
+            return MaintenanceStatus(equipment_id, (), (), False)
+        due: list[str] = []
+        overdue: list[str] = []
+        for plan_id in sorted(self._plans):
+            if self.is_overdue(equipment_id, plan_id):
+                overdue.append(plan_id)
+            elif self.is_due(equipment_id, plan_id):
+                due.append(plan_id)
+        active = any(o.equipment_id == equipment_id
+                     and o.state == WorkOrderState.IN_PROGRESS
+                     for o in self._orders.values())
+        return MaintenanceStatus(equipment_id, tuple(due), tuple(overdue), active)
 
     def open_due_orders(self, now: datetime) -> list[WorkOrder]:
         now = ensure_utc(now)
