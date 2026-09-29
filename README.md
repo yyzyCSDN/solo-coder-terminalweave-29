@@ -28,3 +28,24 @@ library components intended to be composed by an embedding application.
 ## Main packages
 
 `marine`, `cranes`, `yard`, `gate`, `customs`, `reefer`, `hazmat`, `equipment`, `rail`, `billing`, `transshipment`, `planning`, `persistence`, `reporting`, and `api`.
+
+### Unified dispatch availability
+
+`terminalweave.equipment.availability.AvailabilityBoard` folds the separate
+equipment signals — fleet status, unresolved incidents, due/overdue
+maintenance work orders, battery reserve or fuel margin (including estimated
+burn for the trip), live position, and task deadlines — into one real-time
+view.
+
+```python
+board = AvailabilityBoard(fleet, positions=..., incidents=..., maintenance=...,
+                          fuel_tracker=..., fuel_levels=...)
+view = board.view(now, task)          # every unit, with specific block reasons
+decision = board.dispatch(task, now)  # best feasible unit or DispatchRejectedError
+```
+
+`board.dispatch` raises `DispatchRejectedError` carrying a concrete
+`BlockReason` per candidate (wrong kind, low battery, overdue maintenance,
+deadline unreachable, ...). Equipment status changes only release tasks that
+have not started; in-progress work stays attached until completion.
+

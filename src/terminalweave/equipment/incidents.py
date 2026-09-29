@@ -1,10 +1,10 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from terminalweave.core.clock import ensure_utc
 from terminalweave.core.errors import ValidationError
 
-@dataclass(frozen=True)
+@dataclass
 class EquipmentIncident:
     incident_id: str
     equipment_id: str
@@ -12,11 +12,26 @@ class EquipmentIncident:
     severity: int
     category: str
     lost_time_minutes: int = 0
+    resolved_at: datetime | None = field(default=None)
 
     def __post_init__(self):
-        object.__setattr__(self, 'at', ensure_utc(self.at))
+        self.at = ensure_utc(self.at)
         if not 1 <= self.severity <= 5 or self.lost_time_minutes < 0:
             raise ValidationError('invalid incident')
+        if self.resolved_at is not None:
+            self.resolved_at = ensure_utc(self.resolved_at)
+            if self.resolved_at < self.at:
+                raise ValidationError('resolution cannot precede incident')
+
+    def resolve(self, at: datetime) -> None:
+        at = ensure_utc(at)
+        if self.resolved_at is not None:
+            raise ValidationError('incident already resolved')
+        self.resolved_at = at
+
+    @property
+    def resolved(self) -> bool:
+        return self.resolved_at is not None
 
 class IncidentBook:
 
@@ -27,6 +42,15 @@ class IncidentBook:
         if i.incident_id in self.items:
             raise ValidationError('duplicate incident')
         self.items[i.incident_id] = i
+
+    def resolve(self, incident_id: str, at: datetime) -> EquipmentIncident:
+        incident = self.items[incident_id]
+        incident.resolve(at)
+        return incident
+
+    def active_for(self, equipment_id: str) -> tuple[EquipmentIncident, ...]:
+        return tuple(i for i in self.items.values()
+                     if i.equipment_id == equipment_id and not i.resolved)
 
     def frequency(self, equipment_id: str) -> int:
         return sum((i.equipment_id == equipment_id for i in self.items.values()))

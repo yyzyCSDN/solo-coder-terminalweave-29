@@ -70,6 +70,9 @@ class MaintenanceManager:
     def register_meter(self, meter: EquipmentMeter) -> None:
         self._meters[meter.equipment_id] = meter
 
+    def tracked_equipment(self) -> tuple[str, ...]:
+        return tuple(sorted(self._meters))
+
     def due_hours(self, equipment_id: str, plan_id: str) -> float:
         plan = self._plans[plan_id]
         base = self._last_service.get((equipment_id, plan_id), 0.0)
@@ -81,6 +84,11 @@ class MaintenanceManager:
     def is_overdue(self, equipment_id: str, plan_id: str) -> bool:
         plan = self._plans[plan_id]
         return self._meters[equipment_id].hours > self.due_hours(equipment_id, plan_id) + plan.grace_hours
+
+    def active_orders(self, equipment_id: str) -> list[WorkOrder]:
+        return [o for o in self._orders.values()
+                if o.equipment_id == equipment_id
+                and o.state in {WorkOrderState.OPEN, WorkOrderState.IN_PROGRESS}]
 
     def open_due_orders(self, now: datetime) -> list[WorkOrder]:
         now = ensure_utc(now)

@@ -37,7 +37,7 @@ class FleetRegistry:
 
     def transition(self, equipment_id: str, new_state: EquipmentState) -> Equipment:
         item = self.items[equipment_id]
-        allowed = {EquipmentState.AVAILABLE: {EquipmentState.WORKING, EquipmentState.CHARGING, EquipmentState.MAINTENANCE, EquipmentState.OUT_OF_SERVICE}, EquipmentState.WORKING: {EquipmentState.AVAILABLE, EquipmentState.OUT_OF_SERVICE}, EquipmentState.CHARGING: {EquipmentState.AVAILABLE, EquipmentState.OUT_OF_SERVICE}, EquipmentState.MAINTENANCE: {EquipmentState.AVAILABLE, EquipmentState.OUT_OF_SERVICE}, EquipmentState.OUT_OF_SERVICE: {EquipmentState.MAINTENANCE, EquipmentState.AVAILABLE}}
+        allowed = {EquipmentState.AVAILABLE: {EquipmentState.WORKING, EquipmentState.CHARGING, EquipmentState.MAINTENANCE, EquipmentState.OUT_OF_SERVICE}, EquipmentState.WORKING: {EquipmentState.AVAILABLE, EquipmentState.CHARGING, EquipmentState.MAINTENANCE, EquipmentState.OUT_OF_SERVICE}, EquipmentState.CHARGING: {EquipmentState.AVAILABLE, EquipmentState.WORKING, EquipmentState.OUT_OF_SERVICE}, EquipmentState.MAINTENANCE: {EquipmentState.AVAILABLE, EquipmentState.WORKING, EquipmentState.OUT_OF_SERVICE}, EquipmentState.OUT_OF_SERVICE: {EquipmentState.MAINTENANCE, EquipmentState.AVAILABLE, EquipmentState.WORKING}}
         if new_state not in allowed[item.state]:
             raise StateTransitionError(f'cannot transition {item.state} -> {new_state}')
         item.state = new_state
